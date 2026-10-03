@@ -23,7 +23,7 @@ module.exports = async (req, res) => {
       if (/^native/.test(kx)) {
         const spec = kx === 'native3' ? '3' : '2';
         const file = kx === 'nativeurl' ? { type: 'url', url: site + '/api/ping?face=0' } : { type: 'file', mediaType: 'image/jpeg', data: b64 };
-        const rn = await fetch('https://ai-gateway.vercel.sh/v1/ai/image-model', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + t, 'ai-gateway-auth-method': 'oidc', 'ai-image-model-specification-version': spec, 'ai-model-id': body.model },
+        const rn = await fetch('https://ai-gateway.vercel.sh/v1/ai/image-model', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + t, 'ai-gateway-auth-method': 'oidc', 'ai-gateway-protocol-version': '0.0.1', 'ai-image-model-specification-version': spec, 'ai-model-id': body.model },
           body: JSON.stringify({ prompt: 'Put this exact same person on a beach at sunset in a white linen shirt. Keep their face exactly the same.', n: 1, providerOptions: { blackForestLabs: { outputFormat: 'jpeg' } }, files: [file] }), signal: AbortSignal.timeout(55000) });
         const jt = await rn.text(); let jn = null; try { jn = JSON.parse(jt); } catch {}
         const im = jn && jn.images && jn.images[0];
