@@ -131,6 +131,22 @@ a { color: inherit; }
 #goRes .ok { margin: 0 0 14px; font: 900 34px/1.1 var(--sans); }
 #goRes .polaroid { margin: 0 auto 18px; }
 
+/* live preview of the influencer being made */
+.pv { width: min(100%, 280px); background: var(--white); border: 2px solid var(--ink); border-radius: 22px; padding: 14px; box-shadow: 5px 5px 0 var(--ink); text-align: left; }
+.pvtop { display: flex; gap: 10px; align-items: center; }
+.pvav { width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, var(--pink), var(--pink2)); border: 2px solid var(--ink); overflow: hidden; flex: none; }
+.pvav img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pvav img:not([src]) { display: none; }
+.pvn { display: grid; min-width: 0; } .pvn b { font-weight: 900; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .pvn i { font-style: normal; font-weight: 800; font-size: 12px; color: var(--deep); }
+.pv p { margin: 10px 0; font-size: 13px; font-weight: 600; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.pvgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.pvgrid span { aspect-ratio: 4 / 5; border-radius: 8px; background: repeating-linear-gradient(45deg, #ffe0ee 0 8px, #ffd0e5 8px 16px); animation: shimmer 2.4s ease-in-out infinite; }
+.pvgrid span:nth-child(2) { animation-delay: .3s; } .pvgrid span:nth-child(3) { animation-delay: .6s; }
+@keyframes shimmer { 50% { opacity: .55; } }
+.kc.ghost, .post.ghost { border-style: dashed; box-shadow: none; background: rgba(255, 255, 255, .55); min-height: 230px; display: grid; place-items: center; align-content: center; gap: 6px; text-align: center; }
+.kc.ghost b { font-size: 19px; } .kc.ghost i { color: var(--ink); opacity: .6; }
+.gp { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; background: var(--pink); color: var(--white); border: 2px solid var(--ink); font: 900 32px/1 var(--sans); animation: beat 1.8s ease-in-out infinite; }
+.post.ghost { aspect-ratio: 4 / 5; min-height: 0; padding: 18px; } .post.ghost .cap { -webkit-line-clamp: 3; text-align: center; }
 /* 02 roster */
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
 .kc { position: relative; display: grid; justify-items: center; gap: 3px; padding: 22px 16px 18px; background: var(--white); border: 2px solid var(--ink); border-radius: 22px; text-decoration: none; box-shadow: 5px 5px 0 var(--ink); transition: transform .15s, box-shadow .15s; min-width: 0; }
