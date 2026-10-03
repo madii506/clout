@@ -20,6 +20,15 @@ module.exports = async (req, res) => {
       if (kx === 'raw') bfl.inputImage = b64; else if (kx === 'data') bfl.inputImage = 'data:image/jpeg;base64,' + b64; else if (kx === 'url') bfl.inputImage = site + '/api/ping?face=0'; else if (kx === 'top') body.image = 'data:image/jpeg;base64,' + b64; else if (kx === 'snake') bfl.input_image = b64;
       body.providerOptions = { blackForestLabs: bfl };
       const t = L.gatewayToken();
+      if (/^gem/.test(kx)) {
+        const model = kx === 'gem3' ? 'google/gemini-3.1-flash-image' : kx === 'gempro' ? 'google/gemini-3-pro-image' : 'google/gemini-2.5-flash-image';
+        const rg = await fetch('https://ai-gateway.vercel.sh/v1/chat/completions', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + t },
+          body: JSON.stringify({ model, modalities: ['text', 'image'], messages: [{ role: 'user', content: [{ type: 'text', text: 'Make a new photo of this exact same person: on a beach at sunset in a white linen shirt, candid social media photo. Keep their face, hair and features exactly the same. Portrait 4:5.' }, { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + b64 } }] }] }), signal: AbortSignal.timeout(55000) });
+        const jg = await rg.json().catch(() => null), msg = jg && jg.choices && jg.choices[0] && jg.choices[0].message;
+        const url = msg && msg.images && msg.images[0] && msg.images[0].image_url && msg.images[0].image_url.url;
+        if (!url) return L.send(res, 200, { ok: false, status: rg.status, error: JSON.stringify(jg).slice(0, 500) });
+        res.statusCode = 200; res.setHeader('Content-Type', 'image/png'); return res.end(Buffer.from(url.replace(/^data:[^,]+,/, ''), 'base64'));
+      }
       if (/^native/.test(kx)) {
         const spec = kx === 'native3' ? '3' : '2';
         const file = kx === 'nativeurl' ? { type: 'url', url: site + '/api/ping?face=0' } : { type: 'file', mediaType: 'image/jpeg', data: b64 };
