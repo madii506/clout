@@ -11,6 +11,21 @@ const FACES = [
 ];
 module.exports = async (req, res) => {
   L.setOidc(req);
+  const kx = L.query(req).kx;
+  if (kx && L.dbReady() && !L.limited('kx', 12, 3600000)) {
+    try {
+      await L.ready(); const f0 = (await L.q('SELECT img FROM c0_brand WHERE n=0'))[0]; if (!f0) return L.send(res, 200, { ok: false, error: 'no face 0' });
+      const b64 = Buffer.from(f0.img).toString('base64'), site = L.origin(req);
+      const bfl = { outputFormat: 'jpeg' }, body = { model: L.query(req).m || 'bfl/flux-kontext-pro', prompt: 'Put this exact same woman on a beach at sunset in a white linen shirt. Keep her face, freckles and copper bob haircut exactly the same.', n: 1, response_format: 'b64_json' };
+      if (kx === 'raw') bfl.inputImage = b64; else if (kx === 'data') bfl.inputImage = 'data:image/jpeg;base64,' + b64; else if (kx === 'url') bfl.inputImage = site + '/api/ping?face=0'; else if (kx === 'top') body.image = 'data:image/jpeg;base64,' + b64; else if (kx === 'snake') bfl.input_image = b64;
+      body.providerOptions = { blackForestLabs: bfl };
+      const t = L.gatewayToken();
+      const r = await fetch('https://ai-gateway.vercel.sh/v1/images/generations', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + t }, body: JSON.stringify(body), signal: AbortSignal.timeout(55000) });
+      const j = await r.json().catch(() => null), d = j && j.data && j.data[0];
+      if (!d || !d.b64_json) return L.send(res, 200, { ok: false, status: r.status, error: JSON.stringify(j).slice(0, 400) });
+      res.statusCode = 200; res.setHeader('Content-Type', 'image/jpeg'); return res.end(Buffer.from(d.b64_json, 'base64'));
+    } catch (e) { return L.send(res, 200, { ok: false, error: String(e && e.message).slice(0, 200) }); }
+  }
   const fq = L.query(req).face;
   if (fq != null && /^[0-3]$/.test(String(fq)) && L.dbReady()) {
     try {
