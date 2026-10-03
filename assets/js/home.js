@@ -23,7 +23,7 @@
     im.onload = () => {
       const c = document.createElement('canvas'); c.width = c.height = 768; const x = c.getContext('2d'), s = Math.min(im.width, im.height);
       x.fillStyle = '#ffffff'; x.fillRect(0, 0, 768, 768); x.drawImage(im, (im.width - s) / 2, (im.height - s) / 2, s, s, 0, 0, 768, 768);
-      st.image = c.toDataURL('image/jpeg', .9); picImg.src = st.image; drop.classList.add('on'); picNote.textContent = 'tap to change'; URL.revokeObjectURL(url); refreshGo();
+      st.image = c.toDataURL('image/jpeg', .9); picImg.src = st.image; $('#pvImg').src = st.image; drop.classList.add('on'); picNote.textContent = 'tap to change'; URL.revokeObjectURL(url); refreshGo();
     };
     im.onerror = () => { picNote.textContent = 'That picture didn’t open.'; URL.revokeObjectURL(url); };
     im.src = url;
@@ -32,7 +32,9 @@
   ['dragenter', 'dragover'].forEach(k => drop.addEventListener(k, e => { e.preventDefault(); drop.classList.add('over'); }));
   ['dragleave', 'drop'].forEach(k => drop.addEventListener(k, e => { e.preventDefault(); drop.classList.remove('over'); }));
   drop.addEventListener('drop', e => takeFile(e.dataTransfer.files[0]));
-  $('#niches').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; st.niche = b.dataset.n; $$('#niches .chip').forEach(c => c.classList.toggle('on', c === b)); });
+  $('#niches').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; st.niche = b.dataset.n; $$('#niches .chip').forEach(c => c.classList.toggle('on', c === b)); preview(); });
+  function preview() { $('#pvName').textContent = nm.value.trim() || 'your influencer'; $('#pvNiche').textContent = (tk.value ? '$' + tk.value + ' · ' : '') + st.niche; $('#pvVoice').textContent = voice.value.trim() || 'its voice shows up here.'; }
+  [nm, tk].forEach(i => i.addEventListener('input', preview)); voice.addEventListener('input', preview);
   const voiceCount = () => { const n = voice.value.trim().length; $('#voiceN').textContent = n ? n + '/700' : ''; };
   voice.addEventListener('input', () => { voiceCount(); refreshGo(); });
   [nm, tk].forEach(i => i.addEventListener('input', refreshGo));
@@ -111,7 +113,7 @@
   let popped = false;
   function renderRoster(hit) {
     const el = $('#nursery'), ks = sorted();
-    if (!ks.length) { el.innerHTML = `<div class="kc first"><p>No influencer has launched yet.<br>The first one is yours.</p><a class="btn" href="#make">Create an influencer →</a></div>`; $('#moreBtn').hidden = true; return; }
+    if (!ks.length) { el.innerHTML = `<a class="kc ghost" href="#make"><span class="gp">+</span><b>the first one</b><i>is yours</i></a><a class="kc ghost" href="#make"><span class="gp">+</span><b>launch slot #002</b><i>open</i></a><a class="kc ghost" href="#make"><span class="gp">+</span><b>launch slot #003</b><i>open</i></a>`; $('#moreBtn').hidden = true; return; }
     el.innerHTML = ks.slice(0, st.shown).map((k, i) => {
       const cap = usdOf(k.mcap_sol);
       return `<a class="kc s-${esc(k.state)}${popped ? '' : ' pop'}" style="--i:${i % 12}" href="/c/${k.mint}" data-m="${k.mint}"><span class="no">#${String(k.slot + 1).padStart(3, '0')}</span><img src="/i/${k.mint}" alt="" loading="lazy"><b>${esc(k.name)}</b><i>$${esc(k.symbol)} · ${esc(k.niche)}</i><em>${k.posts} post${k.posts === 1 ? '' : 's'} · ${STATE[k.state] || k.state}${cap ? ' · ' + cap : ''}</em></a>`;
@@ -127,7 +129,7 @@
   function renderFeed() {
     const ps = (st.board && st.board.posts) || [], el = $('#posts');
     el.innerHTML = ps.length ? ps.map(p => `<a class="post" href="/c/${p.mint}"><img src="/p/${p.id}" alt="" loading="lazy"><span class="who">$${esc(p.symbol)}</span><span class="cap">${esc(p.caption)}</span></a>`).join('')
-      : '<p class="empty">No posts yet. The first influencer posts the minute it launches.</p>';
+      : '<div class="post ghost"><span class="gp">♥</span><span class="cap">the first post lands here the minute an influencer launches.</span></div><div class="post ghost"><span class="gp">♥</span></div><div class="post ghost"><span class="gp">♥</span></div>';
   }
 
   // ---------- live trades light up their cards ----------
