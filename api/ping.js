@@ -11,50 +11,6 @@ const FACES = [
 ];
 module.exports = async (req, res) => {
   L.setOidc(req);
-  const kx = L.query(req).kx;
-  if (kx && L.dbReady() && !L.limited('kx', 12, 3600000)) {
-    try {
-      await L.ready(); const f0 = (await L.q('SELECT img FROM c0_brand WHERE n=0'))[0]; if (!f0) return L.send(res, 200, { ok: false, error: 'no face 0' });
-      const b64 = Buffer.from(f0.img).toString('base64'), site = L.origin(req);
-      const bfl = { outputFormat: 'jpeg' }, body = { model: L.query(req).m || 'bfl/flux-kontext-pro', prompt: 'Put this exact same woman on a beach at sunset in a white linen shirt. Keep her face, freckles and copper bob haircut exactly the same.', n: 1, response_format: 'b64_json' };
-      if (kx === 'raw') bfl.inputImage = b64; else if (kx === 'data') bfl.inputImage = 'data:image/jpeg;base64,' + b64; else if (kx === 'url') bfl.inputImage = site + '/api/ping?face=0'; else if (kx === 'top') body.image = 'data:image/jpeg;base64,' + b64; else if (kx === 'snake') bfl.input_image = b64;
-      body.providerOptions = { blackForestLabs: bfl };
-      const t = L.gatewayToken();
-      if (kx === 'edits' || kx === 'edits2') {
-        const fd = new FormData();
-        fd.append('model', kx === 'edits2' ? 'bfl/flux-2-pro' : body.model); fd.append('prompt', 'Put this exact same person on a beach at sunset in a white linen shirt. Keep their face exactly the same.'); fd.append('n', '1'); fd.append('response_format', 'b64_json');
-        fd.append('image', new Blob([Buffer.from(b64, 'base64')], { type: 'image/jpeg' }), 'face.jpg');
-        const re = await fetch('https://ai-gateway.vercel.sh/v1/images/edits', { method: 'POST', headers: { authorization: 'Bearer ' + t }, body: fd, signal: AbortSignal.timeout(55000) });
-        const je = await re.json().catch(() => null), de = je && je.data && je.data[0];
-        if (!de || !de.b64_json) return L.send(res, 200, { ok: false, status: re.status, error: JSON.stringify(je).slice(0, 500) });
-        res.statusCode = 200; res.setHeader('Content-Type', 'image/jpeg'); return res.end(Buffer.from(de.b64_json, 'base64'));
-      }
-      if (/^gem/.test(kx)) {
-        const model = kx === 'gem3' ? 'google/gemini-3.1-flash-image' : kx === 'gempro' ? 'google/gemini-3-pro-image' : 'google/gemini-2.5-flash-image';
-        const rg = await fetch('https://ai-gateway.vercel.sh/v1/chat/completions', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + t },
-          body: JSON.stringify({ model, modalities: ['text', 'image'], messages: [{ role: 'user', content: [{ type: 'text', text: 'Make a new photo of this exact same person: on a beach at sunset in a white linen shirt, candid social media photo. Keep their face, hair and features exactly the same. Portrait 4:5.' }, { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + b64 } }] }] }), signal: AbortSignal.timeout(55000) });
-        const jg = await rg.json().catch(() => null), msg = jg && jg.choices && jg.choices[0] && jg.choices[0].message;
-        const url = msg && msg.images && msg.images[0] && msg.images[0].image_url && msg.images[0].image_url.url;
-        if (!url) return L.send(res, 200, { ok: false, status: rg.status, error: JSON.stringify(jg).slice(0, 500) });
-        res.statusCode = 200; res.setHeader('Content-Type', 'image/png'); return res.end(Buffer.from(url.replace(/^data:[^,]+,/, ''), 'base64'));
-      }
-      if (/^native/.test(kx)) {
-        const spec = kx === 'native3' ? '3' : '2';
-        const file = kx === 'nativeurl' ? { type: 'url', url: site + '/api/ping?face=0' } : { type: 'file', mediaType: 'image/jpeg', data: b64 };
-        const rn = await fetch('https://ai-gateway.vercel.sh/v1/ai/image-model', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + t, 'ai-gateway-auth-method': 'oidc', 'ai-gateway-protocol-version': '0.0.1', 'ai-image-model-specification-version': spec, 'ai-model-id': body.model },
-          body: JSON.stringify({ prompt: 'Put this exact same person on a beach at sunset in a white linen shirt. Keep their face exactly the same.', n: 1, providerOptions: { blackForestLabs: { outputFormat: 'jpeg' } }, files: [file] }), signal: AbortSignal.timeout(55000) });
-        const jt = await rn.text(); let jn = null; try { jn = JSON.parse(jt); } catch {}
-        const im = jn && jn.images && jn.images[0];
-        const data = typeof im === 'string' ? im : im && (im.base64 || im.data);
-        if (!data) return L.send(res, 200, { ok: false, status: rn.status, error: jt.slice(0, 500) });
-        res.statusCode = 200; res.setHeader('Content-Type', 'image/jpeg'); return res.end(Buffer.from(data, 'base64'));
-      }
-      const r = await fetch('https://ai-gateway.vercel.sh/v1/images/generations', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + t }, body: JSON.stringify(body), signal: AbortSignal.timeout(55000) });
-      const j = await r.json().catch(() => null), d = j && j.data && j.data[0];
-      if (!d || !d.b64_json) return L.send(res, 200, { ok: false, status: r.status, error: JSON.stringify(j).slice(0, 400) });
-      res.statusCode = 200; res.setHeader('Content-Type', 'image/jpeg'); return res.end(Buffer.from(d.b64_json, 'base64'));
-    } catch (e) { return L.send(res, 200, { ok: false, error: String(e && e.message).slice(0, 200) }); }
-  }
   const fq = L.query(req).face;
   if (fq != null && /^[0-3]$/.test(String(fq)) && L.dbReady()) {
     try {
@@ -69,7 +25,7 @@ module.exports = async (req, res) => {
       res.statusCode = 200; res.setHeader('Content-Type', 'image/jpeg'); res.setHeader('Cache-Control', 'public, max-age=3600'); return res.end(Buffer.from(r.img));
     } catch (e) { return L.send(res, 200, { ok: false, error: String(e && e.message).slice(0, 200) }); }
   }
-  const out = { ok: true, open: !!L.STUDIO, studio: L.STUDIO || null, records: L.dbReady(), captions: L.MODEL, photos: L.IMG_MODELS, gateway: !!L.gatewayToken() };
+  const out = { ok: true, open: !!L.STUDIO, studio: L.STUDIO || null, records: L.dbReady(), captions: L.MODEL, photos: L.IMG_EDIT, gateway: !!L.gatewayToken() };
   try { await L.rpc('getSlot', []); out.chain = true; } catch { out.chain = false; }
   if (out.records) { try { await L.ready(); out.records = true; const s = (await L.q('SELECT shots, shots_day FROM c0_state WHERE id=1'))[0]; out.shotsToday = s && s.shots_day && new Date(s.shots_day).toISOString().slice(0, 10) === new Date().toISOString().slice(0, 10) ? s.shots : 0; out.dailyShots = L.DAILY_SHOTS; } catch { out.records = false; } }
   if (L.query(req).studio === '1' && !L.limited('pingstudio', 4, 3600000)) {

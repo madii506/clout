@@ -163,7 +163,6 @@ const log = (kind, mint, text) => q('INSERT INTO c0_log (kind, mint, text) VALUE
 // ---------- the studio: FLUX (Black Forest Labs) for the photos, a small OpenAI model for the captions, both through
 // Vercel's AI Gateway (OIDC from the request, or a key if one is set) ----------
 const MODEL = (process.env.CAPTION_MODEL || 'openai/gpt-4.1-mini').trim();
-const IMG_MODELS = (process.env.IMG_MODELS || 'bfl/flux-kontext-pro,bfl/flux-2-pro').split(',').map(s => s.trim()).filter(Boolean);
 const DAILY_SHOTS = Math.max(1, Number(process.env.DAILY_SHOTS) || 240);       // the house's photo budget per UTC day
 let OIDC = null;
 const setOidc = req => { const t = req && req.headers && req.headers['x-vercel-oidc-token']; if (t) OIDC = t; };
@@ -180,30 +179,37 @@ async function ai(messages, maxTokens = 220, ms = 20000) {
     return { ok: true, text: String(text) };
   } catch (e) { return { ok: false, error: String(e && e.message).slice(0, 200) }; }
 }
-// one photo. ref: the character's own portrait (a public https URL or base64), so the same face comes back in a new scene.
-// Tries each model in turn: with the portrait as the input image, then (last resort) from the written look alone.
+// one photo. ref: the character's own portrait (base64 JPEG), so the same face comes back in a new scene. With a portrait
+// it goes through the images/edits endpoint (FLUX.2 [pro] first, FLUX Kontext second); without one, plain generation.
+const IMG_EDIT = (process.env.IMG_MODELS || 'bfl/flux-2-pro,bfl/flux-kontext-pro').split(',').map(s => s.trim()).filter(Boolean);
 let lastImgError = null;
 async function photo(prompt, ref, ms = 50000) {
   if (MOCK && MOCK.photo) return MOCK.photo(prompt, ref);
   const token = gatewayToken();
   if (!token) return { ok: false, error: 'no token' };
-  const tries = [];
-  for (const m of IMG_MODELS) { if (ref) tries.push({ model: m, ref: true }); }
-  tries.push({ model: IMG_MODELS[IMG_MODELS.length - 1], ref: false });
-  const t0 = Date.now();
-  for (const t of tries) {
-    if (Date.now() - t0 > ms - 8000) break;
-    try {
-      const bfl = { outputFormat: 'jpeg', safetyTolerance: 2 };
-      if (t.ref) bfl.inputImage = ref;
-      const r = await getJson('https://ai-gateway.vercel.sh/v1/images/generations', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token },
-        body: JSON.stringify({ model: t.model, prompt, n: 1, response_format: 'b64_json', providerOptions: { blackForestLabs: bfl } }) }, Math.max(10000, ms - (Date.now() - t0)));
-      const d = r.json && r.json.data && r.json.data[0];
-      if (d && d.b64_json) return { ok: true, buf: Buffer.from(d.b64_json, 'base64'), model: t.model, ref: t.ref };
-      if (d && d.url) { const f = await fetch(d.url, { signal: AbortSignal.timeout(15000) }); if (f.ok) return { ok: true, buf: Buffer.from(await f.arrayBuffer()), model: t.model, ref: t.ref }; }
-      lastImgError = t.model + (t.ref ? '+ref' : '') + ': ' + String((r.json && r.json.error && (r.json.error.message || r.json.error.type)) || r.status + ' ' + (r.text || '').slice(0, 160)).slice(0, 220);
-    } catch (e) { lastImgError = t.model + ': ' + String(e && e.message).slice(0, 160); }
+  const t0 = Date.now(), left = () => Math.max(10000, ms - (Date.now() - t0));
+  if (ref) {
+    for (const model of IMG_EDIT) {
+      if (Date.now() - t0 > ms - 12000) break;
+      try {
+        const fd = new FormData();
+        fd.append('model', model); fd.append('prompt', prompt); fd.append('n', '1'); fd.append('response_format', 'b64_json');
+        fd.append('image', new Blob([Buffer.from(ref, 'base64')], { type: 'image/jpeg' }), 'face.jpg');
+        const r = await fetch('https://ai-gateway.vercel.sh/v1/images/edits', { method: 'POST', headers: { authorization: 'Bearer ' + token }, body: fd, signal: AbortSignal.timeout(left()) });
+        const j = await r.json().catch(() => null), d = j && j.data && j.data[0];
+        if (d && d.b64_json) return { ok: true, buf: Buffer.from(d.b64_json, 'base64'), model, ref: true };
+        lastImgError = model + ' edit: ' + String((j && j.error && (j.error.message || j.error.type)) || r.status).slice(0, 200);
+      } catch (e) { lastImgError = model + ': ' + String(e && e.message).slice(0, 160); }
+    }
+    return { ok: false, error: lastImgError || 'no image' };
   }
+  try {
+    const r = await getJson('https://ai-gateway.vercel.sh/v1/images/generations', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token },
+      body: JSON.stringify({ model: 'bfl/flux-2-pro', prompt, n: 1, response_format: 'b64_json', providerOptions: { blackForestLabs: { outputFormat: 'jpeg', safetyTolerance: 2 } } }) }, left());
+    const d = r.json && r.json.data && r.json.data[0];
+    if (d && d.b64_json) return { ok: true, buf: Buffer.from(d.b64_json, 'base64'), model: 'bfl/flux-2-pro', ref: false };
+    lastImgError = String((r.json && r.json.error && (r.json.error.message || r.json.error.type)) || r.status).slice(0, 200);
+  } catch (e) { lastImgError = String(e && e.message).slice(0, 160); }
   return { ok: false, error: lastImgError || 'no image' };
 }
 // a day's budget, counted in the database so every function instance shares it
@@ -230,5 +236,5 @@ module.exports = {
   UA, SOL, send, CACHE, query, body, ip, limited, getJson, rpc, rpcRaw, pool, remember, forget,
   isAddr, metaId, origin, b58enc, b58dec, pda, SYSTEM, STUDIO, YOURS, PARENT, HOUSE, sharesOf,
   PUMP, PUMP_FEES, bondingCurveOf, sharingConfigOf, vaultOf, RENT0, accounts, RPC_URL, solPrice, q, ready, dbReady, log,
-  setOidc, gatewayToken, ai, photo, spendShot, MODEL, IMG_MODELS, DAILY_SHOTS, MOCK, BANNED, clean, scrub, parseJson,
+  setOidc, gatewayToken, ai, photo, spendShot, MODEL, IMG_EDIT, DAILY_SHOTS, MOCK, BANNED, clean, scrub, parseJson,
 };

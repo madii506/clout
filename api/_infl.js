@@ -71,7 +71,7 @@ async function plan(k, prev = []) {
   if (!scene || !caption || L.BANNED.test(caption)) return { ok: false, error: 'plan' };
   return { ok: true, scene, caption };
 }
-const shotPrompt = (k, scene) => `${scene}. The same person as in the reference image: keep their exact face, hair and overall style. A real social media photo, natural light, candid, sharp focus, no text, no watermark.`;
+const shotPrompt = (k, scene) => `A new photo of this exact same person: ${scene}. Keep their face, hair and features exactly the same as in the image. A real candid social media photo, natural light, sharp focus, no text, no watermark.`;
 async function finish(buf) {
   return require('sharp')(buf, { limitInputPixels: 60e6 }).resize(900, 1125, { fit: 'cover', position: 'attention' }).jpeg({ quality: 84, mozjpeg: true }).toBuffer();
 }
