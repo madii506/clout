@@ -20,6 +20,15 @@ module.exports = async (req, res) => {
       if (kx === 'raw') bfl.inputImage = b64; else if (kx === 'data') bfl.inputImage = 'data:image/jpeg;base64,' + b64; else if (kx === 'url') bfl.inputImage = site + '/api/ping?face=0'; else if (kx === 'top') body.image = 'data:image/jpeg;base64,' + b64; else if (kx === 'snake') bfl.input_image = b64;
       body.providerOptions = { blackForestLabs: bfl };
       const t = L.gatewayToken();
+      if (kx === 'edits' || kx === 'edits2') {
+        const fd = new FormData();
+        fd.append('model', kx === 'edits2' ? 'bfl/flux-2-pro' : body.model); fd.append('prompt', 'Put this exact same person on a beach at sunset in a white linen shirt. Keep their face exactly the same.'); fd.append('n', '1'); fd.append('response_format', 'b64_json');
+        fd.append('image', new Blob([Buffer.from(b64, 'base64')], { type: 'image/jpeg' }), 'face.jpg');
+        const re = await fetch('https://ai-gateway.vercel.sh/v1/images/edits', { method: 'POST', headers: { authorization: 'Bearer ' + t }, body: fd, signal: AbortSignal.timeout(55000) });
+        const je = await re.json().catch(() => null), de = je && je.data && je.data[0];
+        if (!de || !de.b64_json) return L.send(res, 200, { ok: false, status: re.status, error: JSON.stringify(je).slice(0, 500) });
+        res.statusCode = 200; res.setHeader('Content-Type', 'image/jpeg'); return res.end(Buffer.from(de.b64_json, 'base64'));
+      }
       if (/^gem/.test(kx)) {
         const model = kx === 'gem3' ? 'google/gemini-3.1-flash-image' : kx === 'gempro' ? 'google/gemini-3-pro-image' : 'google/gemini-2.5-flash-image';
         const rg = await fetch('https://ai-gateway.vercel.sh/v1/chat/completions', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + t },
